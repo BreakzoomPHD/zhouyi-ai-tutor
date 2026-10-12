@@ -61,16 +61,61 @@ try {
 
   // Read the actual course module so the test does not hard-code an answer.
   const lessons = await page.evaluate(async () => {
-    const { hexagrams } = await import('/src/data/hexagrams.ts');
-    return hexagrams.map(({ id, title, quiz }) => ({ id, title, quiz }));
+    const [{ hexagrams }, { commentaryById }] = await Promise.all([
+      import('/src/data/hexagrams.ts'), import('/src/data/commentary.ts'),
+    ]);
+    return hexagrams.map(({ id, title, judgment, upper, lower, reading, quiz }) => ({
+      id, title, judgment, upper, lower, reading, quiz, commentary: commentaryById[id],
+    }));
   });
   assert.equal(lessons.length, 64);
+  const assertCommentary = async id => {
+    const lesson = lessons[id - 1];
+    await tab('卦辞').click();
+    await page.getByRole('heading', { name: '卦辞原文', exact: true }).waitFor();
+    const original = (await page.locator('.judgment').textContent()).trim();
+    const translation = (await page.locator('.judgment-translation p').textContent()).trim();
+    assert.equal(original, lesson.judgment, `Lesson ${id} should preserve its classical text.`);
+    assert(translation.length > 8, `Lesson ${id} needs a substantive translation.`);
+    assert.notEqual(translation, original, `Lesson ${id} should distinguish translation from original text.`);
+    assert.equal(translation, lesson.commentary.translation, `Lesson ${id} should show its own translation.`);
+    await page.locator('.judgment-translation').getByRole('heading', { name: '卦辞白话', exact: true }).waitFor();
+    await page.getByRole('heading', { name: '关键词', exact: true }).waitFor();
+    const keywords = await page.locator('.keywords-list .keyword-item').evaluateAll(items => items.map(item => ({
+      term: item.querySelector('dt')?.textContent?.trim(),
+      explanation: item.querySelector('dd')?.textContent?.trim(),
+    })));
+    assert(keywords.length > 0, `Lesson ${id} needs rendered keywords.`);
+    assert(keywords.every(({ term, explanation }) => term && explanation), `Lesson ${id} has an empty keyword definition.`);
+    assert.deepEqual(keywords, lesson.commentary.keywords, `Lesson ${id} should render all of its keyword definitions.`);
+    await page.getByRole('button', { name: '继续：卦解', exact: true }).click();
+    await page.waitForFunction(() => {
+      const heading = document.getElementById('study-title')?.getBoundingClientRect();
+      return heading && heading.top >= 0 && heading.bottom <= window.innerHeight;
+    });
+    assert.equal(await tab('卦解').getAttribute('aria-selected'), 'true');
+    await page.locator('.image-explanation').getByRole('heading', { name: '卦象解读', exact: true }).waitFor();
+    const trigramLabels = await page.locator('.trigram-pair span').allTextContents();
+    assert.equal(trigramLabels.length, 2);
+    assert.match(trigramLabels[0], new RegExp(`^上卦.*${lesson.upper}为`), `Lesson ${id} should identify its upper trigram.`);
+    assert.match(trigramLabels[1], new RegExp(`^下卦.*${lesson.lower}为`), `Lesson ${id} should identify its lower trigram.`);
+    const imagery = (await page.locator('.image-explanation p').textContent()).trim();
+    assert(imagery.length > 12, `Lesson ${id} needs an explanation of its image.`);
+    assert.equal(imagery, lesson.commentary.imageExplanation, `Lesson ${id} should show its own image explanation.`);
+    await page.locator('.hexagram-commentary').getByRole('heading', { name: '卦意解读', exact: true }).waitFor();
+    const reading = await page.locator('.hexagram-commentary .reading-paragraph').allTextContents();
+    assert.deepEqual(reading, lesson.reading, `Lesson ${id} should retain its reading paragraphs.`);
+  };
+  await assertCommentary(1);
+  await tab('卦辞').click();
   await page.evaluate(() => document.fonts.ready);
-  await page.screenshot({ path: '/tmp/guanyi-desktop.png', fullPage: true });
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await page.screenshot({ path: '/tmp/guanyi-commentary-desktop.png', fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await assertNoOverflow('Mobile daily lesson');
-  await page.screenshot({ path: '/tmp/guanyi-mobile.png', fullPage: true });
+  await page.screenshot({ path: '/tmp/guanyi-commentary-mobile.png', fullPage: true });
 
   // Keyboard navigation remains usable in the narrow layout.
   await nav('六十四卦').focus();
@@ -79,17 +124,21 @@ try {
   assert.equal(await page.locator('.hexagram-card').count(), 64);
   await assertNoOverflow('Mobile catalog');
   const longNote = `${'观察、行动与反思，一步一步，把今天的学习放进生活。'.repeat(50)}${'LongUnbrokenText'.repeat(35)}`;
-  for (const id of [2, 10]) {
-    await nav('六十四卦').click();
-    await page.getByRole('button', { name: `第${id}卦 ${lessons[id - 1].title}`, exact: true }).click();
-    await assertLesson(id);
-    for (const step of ['读原文', '明其意', '联系生活', '温故小测']) {
-      await tab(step).click();
-      if (id === 2 && step === '联系生活') {
-        await page.locator('#reflection-note').fill(longNote);
-        assert.equal(await page.locator('#reflection-note').inputValue(), longNote);
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const id of [2, 10, 64]) {
+      await nav('六十四卦').click();
+      await page.getByRole('button', { name: `第${id}卦 ${lessons[id - 1].title}`, exact: true }).click();
+      await assertLesson(id);
+      await assertCommentary(id);
+      for (const step of ['卦辞', '卦解', '联系生活', '温故小测']) {
+        await tab(step).click();
+        if (id === 2 && step === '联系生活') {
+          await page.locator('#reflection-note').fill(longNote);
+          assert.equal(await page.locator('#reflection-note').inputValue(), longNote);
+        }
+        await assertNoOverflow(`Mobile ${width}px lesson ${id}, ${step}`);
       }
-      await assertNoOverflow(`Mobile lesson ${id}, ${step}`);
     }
   }
   await nav('学习方法').click();
@@ -98,7 +147,7 @@ try {
   await nav('学习记录').click();
   await page.getByRole('heading', { name: '第一步，就从今天开始。' }).waitFor();
   await assertNoOverflow('Mobile history');
-  console.log('PASS: mobile navigation and all four views have no horizontal overflow.');
+  console.log('PASS: distinct originals/translations, keywords, imagery, and mobile 320/390 px learning without horizontal overflow.');
 
   await page.setViewportSize({ width: 1440, height: 1050 });
   await nav('六十四卦').click();
@@ -121,14 +170,14 @@ try {
 
   await nav('今日学习').click();
   await assertLesson(1);
-  await tab('读原文').focus();
+  await tab('卦辞').focus();
   await page.keyboard.press('ArrowRight');
-  assert.equal(await tab('明其意').getAttribute('aria-selected'), 'true');
+  assert.equal(await tab('卦解').getAttribute('aria-selected'), 'true');
   assert.equal(await page.evaluate(() => document.activeElement?.id), 'step-1');
   await page.keyboard.press('End');
   assert.equal(await tab('温故小测').getAttribute('aria-selected'), 'true');
   await page.keyboard.press('Home');
-  assert.equal(await tab('读原文').getAttribute('aria-selected'), 'true');
+  assert.equal(await tab('卦辞').getAttribute('aria-selected'), 'true');
   await page.keyboard.press('ArrowLeft');
   assert.equal(await tab('温故小测').getAttribute('aria-selected'), 'true');
   await page.keyboard.press('Home');
@@ -260,6 +309,42 @@ try {
   assert.deepEqual((await storage()).notes, {});
   console.log('PASS: corrupt browser storage resets safely.');
 
+  const legacyContext = await browser.newContext({ timezoneId: 'Asia/Shanghai', reducedMotion: 'reduce' });
+  const legacyNote = '升级前保存的思考：先理解处境，再采取行动。';
+  await legacyContext.addInitScript(({ key, note }) => {
+    if (localStorage.getItem(key) !== null) return;
+    const now = new Date();
+    const previousDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12);
+    const yesterday = `${previousDay.getFullYear()}-${String(previousDay.getMonth() + 1).padStart(2, '0')}-${String(previousDay.getDate()).padStart(2, '0')}`;
+    localStorage.setItem(key, JSON.stringify({
+      version: 1, startedOn: yesterday, completed: { '1': yesterday }, notes: { '1': note },
+    }));
+  }, { key: STORAGE_KEY, note: legacyNote });
+  const legacyPage = await legacyContext.newPage();
+  observeErrors(legacyPage);
+  await legacyPage.goto(APP_URL, { waitUntil: 'networkidle' });
+  assert.equal(await legacyPage.locator('.lesson-number').textContent(), '第 02 卦');
+  assert.equal(await legacyPage.getByRole('progressbar').getAttribute('aria-valuenow'), '1');
+  await legacyPage.getByRole('button', { name: '继续：卦解', exact: true }).click();
+  await legacyPage.getByRole('heading', { name: '卦象解读', exact: true }).waitFor();
+  await legacyPage.waitForFunction(() => {
+    const heading = document.getElementById('study-title')?.getBoundingClientRect();
+    return heading && heading.top >= 0 && heading.bottom <= window.innerHeight;
+  });
+  await legacyPage.locator('.nav-list').getByRole('button', { name: /学习记录/ }).click();
+  assert.equal(await legacyPage.locator('.history-note').textContent(), legacyNote);
+  await legacyPage.getByRole('button', { name: `回顾${lessons[0].title}`, exact: true }).click();
+  await legacyPage.getByRole('tab', { name: /联系生活/ }).click();
+  assert.equal(await legacyPage.locator('#reflection-note').inputValue(), legacyNote);
+  await legacyPage.reload({ waitUntil: 'networkidle' });
+  const retained = await legacyPage.evaluate(key => JSON.parse(localStorage.getItem(key)), STORAGE_KEY);
+  assert.equal(retained.version, 1);
+  assert.equal(retained.notes['1'], legacyNote);
+  assert.equal(Object.keys(retained.completed).length, 1);
+  assert.deepEqual(Object.keys(retained).sort(), ['completed', 'notes', 'startedOn', 'version']);
+  await legacyContext.close();
+  console.log('PASS: existing version-1 completion and notes remain intact with the unchanged storage schema.');
+
   const blockedContext = await browser.newContext({ timezoneId: 'Asia/Shanghai' });
   await blockedContext.addInitScript(() => {
     Object.defineProperty(Storage.prototype, 'setItem', {
@@ -287,7 +372,7 @@ try {
   console.log('PASS: unavailable localStorage shows a notice while learning and in-memory progress remain usable.');
 
   assert.deepEqual(failures, [], `Browser errors detected:\n${failures.join('\n')}`);
-  console.log('Browser integration checks passed. Screenshots: /tmp/guanyi-desktop.png and /tmp/guanyi-mobile.png');
+  console.log('Browser integration checks passed. Screenshots: /tmp/guanyi-commentary-desktop.png and /tmp/guanyi-commentary-mobile.png');
 } finally {
   await browser.close();
 }

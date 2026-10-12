@@ -160,6 +160,7 @@ svg { flex-shrink: 0; }
 .study-card { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
 .study-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px 29px 20px; }
 .study-heading { display: flex; align-items: center; gap: 9px; margin: 0; color: #34513d; font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
+.study-heading { scroll-margin-top: 24px; }
 .study-heading svg { width: 17px; height: 17px; color: #7d8c67; stroke-width: 1.7; }
 .study-header .section-kicker { display: block; margin-bottom: 7px; font-size: 11px; }
 .study-summary { color: #76836a; font-size: 12px; white-space: nowrap; }
@@ -181,6 +182,21 @@ svg { flex-shrink: 0; }
 .original-label::before { content: ""; width: 3px; height: 11px; border-radius: 2px; background: #a5b291; }
 .judgment { margin: 0; color: #435b3c; font-family: var(--serif); font-size: 26px; line-height: 2; letter-spacing: 2px; }
 .reading-paragraph { margin: 18px 0 0; color: #65735c; font-size: 15px; line-height: 2.15; letter-spacing: 0.2px; }
+.content-title { margin: 0 0 12px; color: #45633b; font-family: var(--serif); font-size: 19px; font-weight: 500; line-height: 1.6; letter-spacing: 0.8px; }
+.judgment-translation { margin-top: 20px; padding: 21px 23px; border-left: 3px solid #a9b889; border-radius: 0 6px 6px 0; background: #f0f3e8; }
+.judgment-translation .reading-paragraph, .image-explanation .reading-paragraph { margin-top: 0; }
+.keywords-section { margin-top: 25px; }
+.keywords-list { display: grid; gap: 0; margin: 0; }
+.keyword-item { display: grid; grid-template-columns: minmax(72px, 110px) minmax(0, 1fr); gap: 18px; padding: 15px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.9; }
+.keyword-item:first-child { padding-top: 4px; }
+.keyword-item:last-child { border-bottom: 0; }
+.keyword-item dt { color: #45633b; font-family: var(--serif); font-weight: 600; overflow-wrap: anywhere; }
+.keyword-item dd { margin: 0; color: #65735c; overflow-wrap: anywhere; }
+.image-explanation { padding: 22px; border: 1px solid #e2e7d6; border-radius: 8px; background: #f4f6ee; }
+.trigram-pair { display: flex; flex-wrap: wrap; gap: 9px; margin: 13px 0 17px; }
+.trigram-pair span { padding: 5px 10px; border: 1px solid #d6dfc8; border-radius: 5px; color: #61734f; background: #fbfcf6; font-size: 12px; line-height: 1.7; }
+.hexagram-commentary { margin-top: 25px; }
+.commentary-summary { margin: 0; color: #435b3c; font-size: 15px; line-height: 2; }
 .inline-note { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0 0; color: #7b896c; font-size: 12px; line-height: 1.9; }
 .inline-note svg { width: 13px; height: 13px; margin-top: 3px; color: #9fa889; }
 .meaning-box { padding: 21px 23px; border-left: 3px solid #a9b889; border-radius: 0 6px 6px 0; background: #f0f3e8; }
@@ -477,6 +493,10 @@ svg { flex-shrink: 0; }
 }
 
 @media (max-width: 480px) {
+  .judgment-translation, .image-explanation { padding: 18px; }
+  .content-title { font-size: 18px; }
+  .keyword-item { grid-template-columns: minmax(55px, 78px) minmax(0, 1fr); gap: 12px; font-size: 14px; }
+  .commentary-summary { font-size: 14px; }
   .sidebar { padding-right: 17px; padding-left: 17px; }
   .brand { margin-bottom: 14px; }
   .nav-list { gap: 2px; }
