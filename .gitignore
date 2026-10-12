@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Web application
+node_modules/
+*.tsbuildinfo
+.env.local
+.env.*.local
+
+# Keep TypeScript source libraries despite the original Python lib/ rule.
+!src/lib/
+!src/lib/**
