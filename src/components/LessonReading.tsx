@@ -1,5 +1,6 @@
 import { commentaryById } from '../data/commentary';
 import type { Hexagram } from '../data/hexagrams';
+import XiangReading from './XiangReading';
 
 const trigramImages: Record<string, string> = {
   乾: '天', 坤: '地', 震: '雷', 巽: '风、木',
@@ -34,6 +35,7 @@ export function JudgmentReading({ lesson }: { lesson: Hexagram }) {
 export function HexagramReading({ lesson }: { lesson: Hexagram }) {
   const commentary = commentaryById[lesson.id];
   return <>
+    <XiangReading lesson={lesson} />
     <div className="section-kicker">卦解 · 从卦象到卦意</div>
     <section className="image-explanation" aria-labelledby="image-title">
       <h3 className="content-title" id="image-title">卦象解读</h3>

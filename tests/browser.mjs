@@ -57,15 +57,16 @@ try {
 
   await page.goto(APP_URL, { waitUntil: 'networkidle' });
   await assertLesson(1);
+  assert.equal(await page.getByRole('tab').count(), 4, 'Image reading should keep the existing four-step learning flow.');
   assert.equal(await page.getByRole('progressbar').getAttribute('aria-valuenow'), '0');
 
   // Read the actual course module so the test does not hard-code an answer.
   const lessons = await page.evaluate(async () => {
-    const [{ hexagrams }, { commentaryById }] = await Promise.all([
-      import('/src/data/hexagrams.ts'), import('/src/data/commentary.ts'),
+    const [{ hexagrams }, { commentaryById }, { xiangById }] = await Promise.all([
+      import('/src/data/hexagrams.ts'), import('/src/data/commentary.ts'), import('/src/data/xiang.ts'),
     ]);
     return hexagrams.map(({ id, title, judgment, upper, lower, reading, quiz }) => ({
-      id, title, judgment, upper, lower, reading, quiz, commentary: commentaryById[id],
+      id, title, judgment, upper, lower, reading, quiz, commentary: commentaryById[id], xiang: xiangById[id],
     }));
   });
   assert.equal(lessons.length, 64);
@@ -102,20 +103,41 @@ try {
     const imagery = (await page.locator('.image-explanation p').textContent()).trim();
     assert(imagery.length > 12, `Lesson ${id} needs an explanation of its image.`);
     assert.equal(imagery, lesson.commentary.imageExplanation, `Lesson ${id} should show its own image explanation.`);
+    const xiang = lesson.xiang;
+    await page.locator('.xiang-original').getByRole('heading', { name: '象辞原文', exact: true }).waitFor();
+    const xiangOriginal = (await page.locator('.xiang-text').textContent()).trim();
+    assert.match(xiangOriginal, /^象曰：/, `Lesson ${id} should identify its classical Image text.`);
+    assert.equal(xiangOriginal.replace(/^象曰：\s*/, ''), xiang.original.replace(/^象曰：\s*/, ''),
+      `Lesson ${id} should show its own complete Image text.`);
+    await page.locator('.xiang-translation').getByRole('heading', { name: '象辞白话', exact: true }).waitFor();
+    const xiangTranslation = (await page.locator('.xiang-translation p').textContent()).trim();
+    assert.equal(xiangTranslation, xiang.translation, `Lesson ${id} should show its Image translation.`);
+    assert.notEqual(xiangTranslation, xiangOriginal, `Lesson ${id} should distinguish Image text from its translation.`);
+    await page.locator('.xiang-clauses').getByRole('heading', { name: '象辞辞解', exact: true }).waitFor();
+    const clauses = await page.locator('.xiang-clause').evaluateAll(items => items.map(item => ({
+      text: item.querySelector('h4')?.textContent?.trim().replace(/^[「『“"]/, '').replace(/[」』”"]$/, ''),
+      explanation: item.querySelector('p')?.textContent?.trim(),
+    })));
+    assert.equal(clauses.length, 2, `Lesson ${id} should explain both nature and human-action clauses.`);
+    assert.deepEqual(clauses, xiang.clauses, `Lesson ${id} should render all of its Image clause explanations.`);
+    if (id === 8) assert.match(clauses[1].text, /^先王/, 'Bi should preserve the former-kings subject.');
+    if (id === 23) assert.match(clauses[1].text, /^上以/, 'Bo should preserve the ruler subject.');
+    const xiangScope = await page.locator('.xiang-reading').textContent();
+    assert.match(xiangScope, /大象/, 'Image reading should identify its whole-hexagram scope.');
+    assert.match(xiangScope, /小象/, 'Image reading should distinguish line-image commentary.');
     await page.locator('.hexagram-commentary').getByRole('heading', { name: '卦意解读', exact: true }).waitFor();
     const reading = await page.locator('.hexagram-commentary .reading-paragraph').allTextContents();
     assert.deepEqual(reading, lesson.reading, `Lesson ${id} should retain its reading paragraphs.`);
   };
   await assertCommentary(1);
-  await tab('卦辞').click();
   await page.evaluate(() => document.fonts.ready);
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  await page.screenshot({ path: '/tmp/guanyi-commentary-desktop.png', fullPage: true });
+  await page.screenshot({ path: '/tmp/guanyi-xiang-desktop.png', fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await assertNoOverflow('Mobile daily lesson');
-  await page.screenshot({ path: '/tmp/guanyi-commentary-mobile.png', fullPage: true });
+  await page.screenshot({ path: '/tmp/guanyi-xiang-mobile.png', fullPage: true });
 
   // Keyboard navigation remains usable in the narrow layout.
   await nav('六十四卦').focus();
@@ -126,7 +148,7 @@ try {
   const longNote = `${'观察、行动与反思，一步一步，把今天的学习放进生活。'.repeat(50)}${'LongUnbrokenText'.repeat(35)}`;
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const id of [2, 10, 64]) {
+    for (const id of [2, 8, 10, 23, 64]) {
       await nav('六十四卦').click();
       await page.getByRole('button', { name: `第${id}卦 ${lessons[id - 1].title}`, exact: true }).click();
       await assertLesson(id);
@@ -147,7 +169,7 @@ try {
   await nav('学习记录').click();
   await page.getByRole('heading', { name: '第一步，就从今天开始。' }).waitFor();
   await assertNoOverflow('Mobile history');
-  console.log('PASS: distinct originals/translations, keywords, imagery, and mobile 320/390 px learning without horizontal overflow.');
+  console.log('PASS: judgment/Image originals, translations and clause explanations, plus mobile 320/390 px learning without overflow.');
 
   await page.setViewportSize({ width: 1440, height: 1050 });
   await nav('六十四卦').click();
@@ -372,7 +394,7 @@ try {
   console.log('PASS: unavailable localStorage shows a notice while learning and in-memory progress remain usable.');
 
   assert.deepEqual(failures, [], `Browser errors detected:\n${failures.join('\n')}`);
-  console.log('Browser integration checks passed. Screenshots: /tmp/guanyi-commentary-desktop.png and /tmp/guanyi-commentary-mobile.png');
+  console.log('Browser integration checks passed. Screenshots: /tmp/guanyi-xiang-desktop.png and /tmp/guanyi-xiang-mobile.png');
 } finally {
   await browser.close();
 }

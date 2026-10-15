@@ -167,10 +167,10 @@ export default function App() {
 
       {view === 'methods' && <><section className="page-heading"><div className="eyebrow">A WAY TO LEARN · 致知力行</div><h1>慢慢读，慢慢懂。</h1><p className="page-description">给自己十来分钟，把古老的文字和今天的生活连接起来。</p></section><div className="methods-grid">{[
         ['先读卦辞', '先读原文，再对照白话译文和关键词。留意占筮、祭祀等古代语境，把不懂的字记下来，不必立刻得到所有答案。'],
-        ['细读卦解', '从上下卦的自然之象理解关系，再读卦意解说和生活启发。区分经典原文、现代解释与自己的联想，避免脱离情境套用一句话。'],
+        ['细读卦解', '先读《象传》大象辞原文、白话与逐句辞解，再从上下卦的自然之象理解卦意。区分经典原文、现代解释与自己的联想，避免脱离情境套用一句话。'],
         ['联系生活', '用一个小练习观察自己，把启发写进笔记。我们学习的是思考和行动的方式，而非预测未来。'],
         ['温故再进', '完成一道小测，记录今日学习。每天只新增一卦，按顺序推进；漏学不会跳过，预习和回顾不限次数。'],
-      ].map(([title, body], i) => <article className="method-card" key={title}><span className="method-number">0{i + 1}</span><h2 className="method-title">{title}</h2><p className="method-body">{body}</p></article>)}</div><div className="notice-box"><strong>关于内容</strong><p>课程以通行本《周易》六十四卦卦辞为原文，采用简体字；各版本在字形、标点上可能有差异。卦辞白话、关键词、卦象和卦意解读、练习与测验为本项目编写的入门材料，译文采用常见传统解释，不代表唯一训诂，也不是古代注疏。初版聚焦卦辞，后续可以逐步深入爻辞与《十翼》。</p></div><button className="button primary" onClick={() => navigate('today')}>开始今天的一卦 <Icon name="arrow" /></button></>}
+      ].map(([title, body], i) => <article className="method-card" key={title}><span className="method-number">0{i + 1}</span><h2 className="method-title">{title}</h2><p className="method-body">{body}</p></article>)}</div><div className="notice-box"><strong>关于内容</strong><p>课程收录通行本《周易》六十四卦的卦辞与《象传》大象辞，采用简体字；各版本在字形、标点上可能有差异。白话、关键词、象辞辞解、卦象与卦意解读为现代入门材料，采用常见传统解释，不代表唯一训诂，也不是古代注疏。大象解说整卦，小象解说每爻；本课先读大象，后续可以逐步深入爻辞与小象。大象原文校对参考 <a href="https://github.com/kanripo/KR1a0001" target="_blank" rel="noopener noreferrer">Kanripo《周易》正文</a>。</p></div><button className="button primary" onClick={() => navigate('today')}>开始今天的一卦 <Icon name="arrow" /></button></>}
       <footer className="footer"><span>观易 · 与经典同行</span><span>一日一卦，学以致用。</span></footer>
     </main>
     {toast && <div className="toast" role="status"><Icon name="check" size={18} />{toast}</div>}
